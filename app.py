@@ -1,6 +1,7 @@
 import streamlit as st
-from datetime import date
+from datetime import date, timedelta
 import math
+import html as _html
 
 st.set_page_config(
     page_title="Simulador PYME — Rosental S.A.",
@@ -15,6 +16,14 @@ st.markdown("""
 [data-testid="block-container"] { padding-top: 0.5rem; padding-bottom: 2rem; }
 #MainMenu, header, footer { visibility: hidden; }
 
+/* Hide Streamlit's auto-generated SVG icons / anchor links inside input labels */
+[data-testid="stNumberInput"] label svg,
+[data-testid="stTextInput"]   label svg,
+[data-testid="stDateInput"]   label svg,
+[data-testid="stNumberInput"] label a,
+[data-testid="stTextInput"]   label a,
+[data-testid="stDateInput"]   label a { display: none !important; }
+
 .app-header {
     background: linear-gradient(135deg, #0f2d5e 0%, #1a4fa8 100%);
     color: white;
@@ -28,34 +37,41 @@ st.markdown("""
 .app-header h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
 .app-header p  { font-size: 0.73rem; opacity: 0.68; margin: 3px 0 0; }
 
-/* ── NETO card ── */
+/* ── NETO card (azul) ── */
 .neto-card {
-    background: linear-gradient(135deg, #054f37 0%, #059669 100%);
+    background: linear-gradient(135deg, #0f2d5e 0%, #1a4fa8 100%);
     color: white;
     border-radius: 16px;
-    padding: 30px 28px 26px;
+    padding: 36px 32px 30px;
     text-align: center;
     margin-bottom: 18px;
-    box-shadow: 0 6px 24px rgba(5,150,105,0.28);
+    box-shadow: 0 6px 28px rgba(15,45,94,0.30);
 }
 .neto-card .nc-label {
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    opacity: 0.78;
-    margin-bottom: 10px;
+    letter-spacing: 2.2px;
+    opacity: 0.72;
+    margin-bottom: 12px;
 }
 .neto-card .nc-amount {
-    font-size: 2.7rem;
+    font-size: 3.3rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     line-height: 1;
     margin: 0;
 }
+.neto-card .nc-words {
+    font-size: 0.71rem;
+    opacity: 0.68;
+    font-style: italic;
+    margin-top: 8px;
+    line-height: 1.4;
+}
 .neto-card .nc-sub {
-    font-size: 0.72rem;
-    opacity: 0.65;
+    font-size: 0.68rem;
+    opacity: 0.55;
     margin-top: 10px;
 }
 
@@ -84,14 +100,14 @@ st.markdown("""
     padding: 4px 0;
     font-size: 0.82rem;
 }
-.bk-row.sep { border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 8px; }
+.bk-row.sep  { border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 8px; }
 .bk-row.bold { font-weight: 700; color: #0f2d5e; font-size: 0.85rem; }
 .bk-row.sgr  { color: #92400e; }
 .bk-row.neto-row {
     font-weight: 800;
-    color: #065f46;
+    color: #1a4fa8;
     font-size: 0.92rem;
-    background: #f0fdf4;
+    background: #eff6ff;
     border-radius: 8px;
     padding: 9px 10px;
     margin-top: 8px;
@@ -99,7 +115,7 @@ st.markdown("""
 .bk-key { color: #6b7280; }
 .bk-val { font-weight: 600; font-family: 'Consolas', 'Courier New', monospace; }
 
-/* ── Instrument input card ── */
+/* ── Instrument badge ── */
 .inst-num {
     display: inline-flex;
     align-items: center;
@@ -115,7 +131,7 @@ st.markdown("""
     vertical-align: middle;
 }
 
-/* ── Labels ── */
+/* ── Labels & hints ── */
 .slabel {
     font-size: 0.63rem;
     font-weight: 700;
@@ -132,6 +148,13 @@ st.markdown("""
     padding-bottom: 2px;
     min-height: 14px;
     line-height: 1.3;
+}
+.date-hint {
+    font-size: 0.67rem;
+    color: #93c5fd;
+    font-style: italic;
+    margin-top: 4px;
+    text-align: center;
 }
 
 /* ── Param card ── */
@@ -150,6 +173,7 @@ st.markdown("""
     color: #6b7280;
     margin: 0 0 8px;
 }
+
 [data-testid="stNumberInput"] input { font-weight: 600; color: #1a4fa8; }
 [data-testid="stTabs"] button[data-baseweb="tab"] { font-size: 0.88rem; font-weight: 600; }
 
@@ -162,14 +186,15 @@ st.markdown("""
     text-align: center;
     color: #94a3b8;
 }
-.empty-state .es-icon { font-size: 2.8rem; margin-bottom: 12px; }
+.empty-state .es-icon  { font-size: 2.8rem; margin-bottom: 12px; }
 .empty-state .es-title { font-size: 0.9rem; font-weight: 600; color: #64748b; }
 .empty-state .es-sub   { font-size: 0.78rem; margin-top: 6px; }
 
 /* ── Multi-instrument table ── */
 .mit { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 8px; }
 .mit table { border-collapse: collapse; width: 100%; font-size: 0.77rem; font-family: 'Segoe UI', system-ui, sans-serif; }
-.mit th { padding: 7px 9px; font-size: 0.63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; text-align: right; }
+.mit th { padding: 7px 9px; font-size: 0.63rem; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .3px; white-space: nowrap; text-align: right; }
 .mit th:first-child { text-align: left; }
 .mit td { padding: 7px 9px; text-align: right; border-bottom: 1px solid #f0f2f5; white-space: nowrap; }
 .mit td:first-child { text-align: left; font-weight: 500; }
@@ -290,63 +315,80 @@ def pg_add():
     st.session_state.pg_next_id += 1
     n = len(st.session_state.pg_ids) + 1
     st.session_state.pg_ids.append(iid)
-    st.session_state[f"pg_n_{iid}"]   = f"Instrumento {n}"
-    st.session_state[f"pg_fl_{iid}"]  = date.today()
-    st.session_state[f"pg_fp_{iid}"]  = date.today()
-    st.session_state[f"pg_vn_{iid}"]  = 0.0
-    st.session_state[f"pg_tc_{iid}"]  = 0.0
-    st.session_state[f"pg_tna_{iid}"] = 0.0
+    st.session_state[f"pg_n_{iid}"]     = f"Instrumento {n}"
+    st.session_state[f"pg_mode_{iid}"]  = "plazo"
+    st.session_state[f"pg_plazo_{iid}"] = 30
+    st.session_state[f"pg_t1_{iid}"]    = False
+    st.session_state[f"pg_fl_{iid}"]    = date.today()
+    st.session_state[f"pg_fp_{iid}"]    = date.today()
+    st.session_state[f"pg_vn_{iid}"]    = 0.0
+    st.session_state[f"pg_tc_{iid}"]    = 0.0
+    st.session_state[f"pg_tna_{iid}"]   = 0.0
 
 def pg_del(iid):
     st.session_state.pg_ids = [x for x in st.session_state.pg_ids if x != iid]
-    for k in [f"pg_n_{iid}", f"pg_fl_{iid}", f"pg_fp_{iid}",
-              f"pg_vn_{iid}", f"pg_tc_{iid}", f"pg_tna_{iid}"]:
+    for k in [f"pg_n_{iid}", f"pg_mode_{iid}", f"pg_plazo_{iid}", f"pg_t1_{iid}",
+              f"pg_fl_{iid}", f"pg_fp_{iid}", f"pg_vn_{iid}", f"pg_tc_{iid}", f"pg_tna_{iid}"]:
         st.session_state.pop(k, None)
 
 def pg_clear():
     for iid in st.session_state.pg_ids.copy():
-        for k in [f"pg_n_{iid}", f"pg_fl_{iid}", f"pg_fp_{iid}",
-                  f"pg_vn_{iid}", f"pg_tc_{iid}", f"pg_tna_{iid}"]:
+        for k in [f"pg_n_{iid}", f"pg_mode_{iid}", f"pg_plazo_{iid}", f"pg_t1_{iid}",
+                  f"pg_fl_{iid}", f"pg_fp_{iid}", f"pg_vn_{iid}", f"pg_tc_{iid}", f"pg_tna_{iid}"]:
             st.session_state.pop(k, None)
     st.session_state.pg_ids = []
     st.session_state.pg_next_id = 1
+
+def resolve_dates(iid):
+    """Devuelve (fl, fp) según el modo del instrumento."""
+    mode = st.session_state.get(f"pg_mode_{iid}", "plazo")
+    if mode == "plazo":
+        plazo_d = int(st.session_state.get(f"pg_plazo_{iid}", 30))
+        is_t1   = st.session_state.get(f"pg_t1_{iid}", False)
+        fl = date.today() + timedelta(days=(1 if is_t1 else 0))
+        fp = fl + timedelta(days=plazo_d)
+    else:
+        fl = st.session_state.get(f"pg_fl_{iid}", date.today())
+        fp = st.session_state.get(f"pg_fp_{iid}", date.today())
+    return fl, fp
 
 # ══════════════════════════════════════════════════
 # BREAKDOWN HTML helpers
 # ══════════════════════════════════════════════════
 def bk_row(key, val, css=""):
-    return f'<div class="bk-row {css}"><span class="bk-key">{key}</span><span class="bk-val">$ {fmt_ars(val)}</span></div>'
+    return (f'<div class="bk-row {css}">'
+            f'<span class="bk-key">{key}</span>'
+            f'<span class="bk-val">$ {fmt_ars(val)}</span>'
+            f'</div>')
 
 def single_breakdown(c, nombre, garantizado):
-    sgr_block = ""
+    safe_nombre = _html.escape(str(nombre))
+    rows = ""
+    rows += bk_row("Valor Nominal Pesos", c["H"])
+    rows += bk_row("Importe Bruto",       c["J"])
+    rows += bk_row("Descuento",           c["K"])
+    rows += bk_row("Der. de Mercado",     c["L"], "sep")
+    rows += bk_row("Arancel Rosental S.A.", c["M"])
+    rows += bk_row("IVA Gastos",          c["N"])
+    rows += bk_row("Total Gastos",        c["O"], "bold")
     if garantizado:
-        sgr_block = f"""
-        {bk_row("Com. SGR", c['Q'], "sep sgr")}
-        {bk_row("Caja de Valores SGR", c['R'], "sgr")}
-        {bk_row("Total SGR", c['S'], "sgr bold")}"""
-    return f"""
-    <div class="bk-card">
-      <div class="bk-title">📋 Detalle de Liquidación — {nombre} · {int(c['dias'])} días</div>
-      {bk_row("Valor Nominal Pesos", c['H'])}
-      {bk_row("Importe Bruto", c['J'])}
-      {bk_row("Descuento", c['K'])}
-      {bk_row("Der. de Mercado", c['L'], "sep")}
-      {bk_row("Arancel Rosental S.A.", c['M'])}
-      {bk_row("IVA Gastos", c['N'])}
-      {bk_row("Total Gastos", c['O'], "bold")}
-      {bk_row("Total Boleto", c['P'], "sep bold")}
-      {sgr_block}
-      <div class="bk-row neto-row">
-        <span>NETO A COBRAR</span>
-        <span>$ {fmt_ars(c['T'])}</span>
-      </div>
-    </div>"""
+        rows += bk_row("Com. SGR",            c["Q"], "sep sgr")
+        rows += bk_row("Caja de Valores SGR", c["R"], "sgr")
+        rows += bk_row("Total SGR",           c["S"], "sgr bold")
+    neto = (f'<div class="bk-row neto-row">'
+            f'<span>NETO A COBRAR</span>'
+            f'<span>$ {fmt_ars(c["T"])}</span>'
+            f'</div>')
+    return (f'<div class="bk-card">'
+            f'<div class="bk-title">📋 Detalle de Liquidación — {safe_nombre} · {int(c["dias"])} días</div>'
+            f'{rows}{neto}'
+            f'</div>')
 
 def multi_table(rows_data, tot, garantizado):
     G  = "#f1f5f9"
     BL = "#dbeafe"
     YL = "#fef9c3"
-    GN = "#dcfce7"
+    GN = "#dbeafe"   # azul claro para neto en tabla múltiple
     TK = "#1e293b"
     TH = f"background:{G};border-bottom:2px solid #e2e8f0;"
     TS = f"background:{TK};color:#f8fafc;font-weight:700;font-size:0.81rem;"
@@ -354,72 +396,65 @@ def multi_table(rows_data, tot, garantizado):
     sgr_head = ""
     sgr_foot = ""
     if garantizado:
-        sgr_head = f"""
-        <th style="{TH}background:{YL};color:#92400e;">Com. SGR</th>
-        <th style="{TH}background:{YL};color:#92400e;">Caja Val.</th>
-        <th style="{TH}background:{YL};color:#92400e;">Tot. SGR</th>"""
-        sgr_foot = f"""
-        <td style="{TS}color:#fcd34d;">{fmt_ars(tot['Q'])}</td>
-        <td style="{TS}color:#fcd34d;">{fmt_ars(tot['R'])}</td>
-        <td style="{TS}color:#fcd34d;">{fmt_ars(tot['S'])}</td>"""
+        sgr_head = (f'<th style="{TH}background:{YL};color:#92400e;">Com. SGR</th>'
+                    f'<th style="{TH}background:{YL};color:#92400e;">Caja Val.</th>'
+                    f'<th style="{TH}background:{YL};color:#92400e;">Tot. SGR</th>')
+        sgr_foot = (f'<td style="{TS}color:#fcd34d;">{fmt_ars(tot["Q"])}</td>'
+                    f'<td style="{TS}color:#fcd34d;">{fmt_ars(tot["R"])}</td>'
+                    f'<td style="{TS}color:#fcd34d;">{fmt_ars(tot["S"])}</td>')
 
     body = ""
     for row in rows_data:
         c = row["calc"]
+        safe_nm = _html.escape(str(row["nombre"]))
         sgr_tds = ""
         if garantizado:
-            sgr_tds = f"""
-            <td style="background:{YL};color:#92400e;">{fmt_ars(c['Q'])}</td>
-            <td style="background:{YL};color:#92400e;">{fmt_ars(c['R'])}</td>
-            <td style="background:{YL};color:#92400e;font-weight:600;">{fmt_ars(c['S'])}</td>"""
-        body += f"""<tr>
-          <td style="text-align:left;font-weight:500;">{row['nombre']}</td>
-          <td style="background:{G};">{int(c['dias'])}</td>
-          <td style="background:{G};">{fmt_ars(c['H'])}</td>
-          <td style="background:{G};">{fmt_ars(c['J'])}</td>
-          <td style="background:{G};">{fmt_ars(c['K'])}</td>
-          <td style="background:{G};">{fmt_ars(c['L'])}</td>
-          <td style="background:{G};">{fmt_ars(c['M'])}</td>
-          <td style="background:{G};">{fmt_ars(c['N'])}</td>
-          <td style="background:{G};">{fmt_ars(c['O'])}</td>
-          <td style="background:{BL};color:#1d40af;font-weight:600;">{fmt_ars(c['P'])}</td>
-          {sgr_tds}
-          <td style="background:{GN};color:#065f46;font-weight:700;">{fmt_ars(c['T'])}</td>
-        </tr>"""
+            sgr_tds = (f'<td style="background:{YL};color:#92400e;">{fmt_ars(c["Q"])}</td>'
+                       f'<td style="background:{YL};color:#92400e;">{fmt_ars(c["R"])}</td>'
+                       f'<td style="background:{YL};color:#92400e;font-weight:600;">{fmt_ars(c["S"])}</td>')
+        body += (f'<tr>'
+                 f'<td style="text-align:left;font-weight:500;">{safe_nm}</td>'
+                 f'<td style="background:{G};">{int(c["dias"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["H"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["J"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["K"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["L"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["M"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["N"])}</td>'
+                 f'<td style="background:{G};">{fmt_ars(c["O"])}</td>'
+                 f'{sgr_tds}'
+                 f'<td style="background:{GN};color:#1d40af;font-weight:700;">{fmt_ars(c["T"])}</td>'
+                 f'</tr>')
 
-    return f"""
-    <div class="mit">
-    <table>
-    <thead><tr>
-      <th style="{TH}text-align:left;min-width:120px;">Instrumento</th>
-      <th style="{TH}">Días</th>
-      <th style="{TH}">VN Pesos</th>
-      <th style="{TH}">Imp. Bruto</th>
-      <th style="{TH}">Descuento</th>
-      <th style="{TH}">Der. Mercado</th>
-      <th style="{TH}">Arancel</th>
-      <th style="{TH}">IVA Gastos</th>
-      <th style="{TH}">Tot. Gastos</th>
-      <th style="{TH}background:{BL};color:#1d40af;">Tot. Boleto</th>
-      {sgr_head}
-      <th style="{TH}background:{GN};color:#065f46;">NETO</th>
-    </tr></thead>
-    <tbody>{body}</tbody>
-    <tfoot><tr>
-      <td style="{TS}text-align:left;">▶ TOTALES</td>
-      <td style="{TS}color:#94a3b8;">—</td>
-      <td style="{TS}">{fmt_ars(tot['H'])}</td>
-      <td style="{TS}">{fmt_ars(tot['J'])}</td>
-      <td style="{TS}">{fmt_ars(tot['K'])}</td>
-      <td style="{TS}">{fmt_ars(tot['L'])}</td>
-      <td style="{TS}">{fmt_ars(tot['M'])}</td>
-      <td style="{TS}">{fmt_ars(tot['N'])}</td>
-      <td style="{TS}">{fmt_ars(tot['O'])}</td>
-      <td style="{TS}color:#93c5fd;">{fmt_ars(tot['P'])}</td>
-      {sgr_foot}
-      <td style="{TS}color:#86efac;font-size:0.86rem;">{fmt_ars(tot['T'])}</td>
-    </tr></tfoot>
-    </table></div>"""
+    return (f'<div class="mit"><table>'
+            f'<thead><tr>'
+            f'<th style="{TH}text-align:left;min-width:120px;">Instrumento</th>'
+            f'<th style="{TH}">Días</th>'
+            f'<th style="{TH}">VN Pesos</th>'
+            f'<th style="{TH}">Imp. Bruto</th>'
+            f'<th style="{TH}">Descuento</th>'
+            f'<th style="{TH}">Der. Mercado</th>'
+            f'<th style="{TH}">Arancel</th>'
+            f'<th style="{TH}">IVA Gastos</th>'
+            f'<th style="{TH}">Tot. Gastos</th>'
+            f'{sgr_head}'
+            f'<th style="{TH}background:{GN};color:#1d40af;">NETO</th>'
+            f'</tr></thead>'
+            f'<tbody>{body}</tbody>'
+            f'<tfoot><tr>'
+            f'<td style="{TS}text-align:left;">▶ TOTALES</td>'
+            f'<td style="{TS}color:#94a3b8;">—</td>'
+            f'<td style="{TS}">{fmt_ars(tot["H"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["J"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["K"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["L"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["M"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["N"])}</td>'
+            f'<td style="{TS}">{fmt_ars(tot["O"])}</td>'
+            f'{sgr_foot}'
+            f'<td style="{TS}color:#93c5fd;font-size:0.86rem;">{fmt_ars(tot["T"])}</td>'
+            f'</tr></tfoot>'
+            f'</table></div>')
 
 # ══════════════════════════════════════════════════
 # HEADER
@@ -457,25 +492,41 @@ with tab_pg:
     with st.expander("⚙️  Gastos y Aranceles — Parámetros", expanded=False):
         nc = 4 if garantizado else 2
         pcols = st.columns(nc)
+
         with pcols[0]:
             st.markdown('<div class="pcrd"><h4>📊 Derechos de Mercado</h4>', unsafe_allow_html=True)
-            st.number_input("Tasa anual + IVA (%)", min_value=0.0, step=0.01, format="%.4f", key="p_der")
+            st.markdown('<div class="slabel">Tasa anual + IVA (%)</div>', unsafe_allow_html=True)
+            st.number_input("p_der_lbl", min_value=0.0, step=0.01, format="%.4f",
+                            key="p_der", label_visibility="collapsed")
             st.markdown("</div>", unsafe_allow_html=True)
+
         with pcols[1]:
             st.markdown('<div class="pcrd"><h4>🏢 Arancel Rosental S.A.</h4>', unsafe_allow_html=True)
-            st.number_input("Comisión anual + IVA (%)", min_value=0.0, step=0.1, format="%.4f", key="p_com")
-            st.number_input("Boleto Mínimo ($)", min_value=0.0, step=10.0, format="%.2f", key="p_boleto")
+            st.markdown('<div class="slabel">Comisión anual + IVA (%)</div>', unsafe_allow_html=True)
+            st.number_input("p_com_lbl", min_value=0.0, step=0.1, format="%.4f",
+                            key="p_com", label_visibility="collapsed")
+            st.markdown('<div class="slabel" style="margin-top:6px;">Boleto Mínimo ($)</div>', unsafe_allow_html=True)
+            st.number_input("p_boleto_lbl", min_value=0.0, step=10.0, format="%.2f",
+                            key="p_boleto", label_visibility="collapsed")
             st.markdown("</div>", unsafe_allow_html=True)
+
         if garantizado:
             with pcols[2]:
                 st.markdown('<div class="pcrd"><h4>🔒 SGR — Comisión</h4>', unsafe_allow_html=True)
-                st.number_input("Tasa anual (%)", min_value=0.0, step=0.1, format="%.4f", key="p_sgr_com")
+                st.markdown('<div class="slabel">Tasa anual (%)</div>', unsafe_allow_html=True)
+                st.number_input("p_sgr_com_lbl", min_value=0.0, step=0.1, format="%.4f",
+                                key="p_sgr_com", label_visibility="collapsed")
                 st.markdown("</div>", unsafe_allow_html=True)
+
             with pcols[3]:
                 st.markdown('<div class="pcrd"><h4>🏦 SGR — Caja de Valores</h4>', unsafe_allow_html=True)
-                st.number_input("Tasa × 1,21 IVA (%)", min_value=0.0, step=0.01, format="%.4f", key="p_sgr_caja")
+                st.markdown('<div class="slabel">Tasa × 1,21 IVA (%)</div>', unsafe_allow_html=True)
+                st.number_input("p_sgr_caja_lbl", min_value=0.0, step=0.01, format="%.4f",
+                                key="p_sgr_caja", label_visibility="collapsed")
                 st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<p style='font-size:0.7rem;color:#9ca3af;margin-top:8px;'>(*) TC Com. BNA billete vendedor</p>", unsafe_allow_html=True)
+
+        st.markdown("<p style='font-size:0.7rem;color:#9ca3af;margin-top:8px;'>(*) TC Com. BNA billete vendedor</p>",
+                    unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -499,11 +550,13 @@ with tab_pg:
 
         for idx, iid in enumerate(st.session_state.pg_ids):
             with st.container(border=True):
+                # Header row: badge + name + delete
                 hc1, hc2 = st.columns([7, 1])
                 with hc1:
                     st.markdown(
                         f'<span class="inst-num">{idx+1}</span>'
-                        f'<b style="color:#0f4c81;font-size:0.83rem;vertical-align:middle;">Instrumento {idx+1}</b>',
+                        f'<b style="color:#0f4c81;font-size:0.83rem;vertical-align:middle;">'
+                        f'Instrumento {idx+1}</b>',
                         unsafe_allow_html=True,
                     )
                     st.text_input("Nombre", key=f"pg_n_{iid}",
@@ -515,36 +568,82 @@ with tab_pg:
                         pg_del(iid)
                         st.rerun()
 
-                d1, d2 = st.columns(2)
-                with d1:
-                    st.markdown('<div class="slabel">📅 F. Liquidación</div>', unsafe_allow_html=True)
-                    st.date_input("FL", key=f"pg_fl_{iid}", label_visibility="collapsed")
-                with d2:
-                    st.markdown('<div class="slabel">📅 F. Pago</div>', unsafe_allow_html=True)
-                    st.date_input("FP", key=f"pg_fp_{iid}", label_visibility="collapsed")
+                # Mode toggle: Plazo / Fecha
+                mode_opts = ["📅 Por plazo", "📆 Por fechas"]
+                cur_mode = st.session_state.get(f"pg_mode_{iid}", "plazo")
+                mode_sel = st.radio(
+                    "Modo", mode_opts,
+                    index=0 if cur_mode == "plazo" else 1,
+                    horizontal=True,
+                    key=f"pg_mode_radio_{iid}",
+                    label_visibility="collapsed",
+                )
+                st.session_state[f"pg_mode_{iid}"] = "plazo" if mode_sel == mode_opts[0] else "fecha"
 
+                if st.session_state[f"pg_mode_{iid}"] == "plazo":
+                    # Plazo inputs
+                    pa, pb = st.columns([3, 2])
+                    with pa:
+                        st.markdown('<div class="slabel">⏱ Plazo (días)</div>', unsafe_allow_html=True)
+                        plazo_v = st.number_input(
+                            "Plazo", min_value=1, max_value=1825, step=1,
+                            key=f"pg_plazo_{iid}", label_visibility="collapsed",
+                        )
+                    with pb:
+                        st.markdown('<div class="slabel">📅 Liquidación</div>', unsafe_allow_html=True)
+                        is_t1 = st.toggle("T+1 (mañana)", key=f"pg_t1_{iid}")
+
+                    # Show computed dates as hint
+                    offset = 1 if is_t1 else 0
+                    fl_preview = date.today() + timedelta(days=offset)
+                    fp_preview = fl_preview + timedelta(days=int(plazo_v))
+                    st.markdown(
+                        f'<div class="date-hint">'
+                        f'Liq: <b>{fl_preview.strftime("%d/%m/%Y")}</b>'
+                        f' → Pago: <b>{fp_preview.strftime("%d/%m/%Y")}</b>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Date picker inputs
+                    d1, d2 = st.columns(2)
+                    with d1:
+                        st.markdown('<div class="slabel">📅 F. Liquidación</div>', unsafe_allow_html=True)
+                        st.date_input("FL", key=f"pg_fl_{iid}", label_visibility="collapsed")
+                    with d2:
+                        st.markdown('<div class="slabel">📅 F. Pago</div>', unsafe_allow_html=True)
+                        st.date_input("FP", key=f"pg_fp_{iid}", label_visibility="collapsed")
+
+                # VN + TC
                 v1, v2 = st.columns(2)
                 with v1:
                     st.markdown('<div class="slabel">💵 VN USD</div>', unsafe_allow_html=True)
                     vn_v = st.number_input("VN", min_value=0.0, step=1000.0, format="%.2f",
                                            key=f"pg_vn_{iid}", label_visibility="collapsed")
                     if vn_v:
-                        st.markdown(f'<div class="whint">{fmt_ars(vn_v)} · <i>{numero_a_palabras(vn_v)}</i></div>',
-                                    unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="whint">{fmt_ars(vn_v)} · <i>{numero_a_palabras(vn_v)}</i></div>',
+                            unsafe_allow_html=True,
+                        )
                 with v2:
                     st.markdown('<div class="slabel">🔄 Tipo de Cambio</div>', unsafe_allow_html=True)
                     tc_v = st.number_input("TC", min_value=0.0, step=10.0, format="%.2f",
                                            key=f"pg_tc_{iid}", label_visibility="collapsed")
                     if tc_v:
-                        st.markdown(f'<div class="whint">{fmt_ars(tc_v)} · <i>{numero_a_palabras(tc_v)}</i></div>',
-                                    unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="whint">{fmt_ars(tc_v)} · <i>{numero_a_palabras(tc_v)}</i></div>',
+                            unsafe_allow_html=True,
+                        )
 
+                # TNA
                 st.markdown('<div class="slabel">📈 TNA (%)</div>', unsafe_allow_html=True)
                 tna_v = st.number_input("TNA", min_value=0.0, max_value=9999.0, step=0.5, format="%.2f",
                                         key=f"pg_tna_{iid}", label_visibility="collapsed")
                 if tna_v:
-                    st.markdown(f'<div class="whint"><i>{numero_a_palabras(tna_v)} por ciento</i></div>',
-                                unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="whint"><i>{numero_a_palabras(tna_v)} por ciento</i></div>',
+                        unsafe_allow_html=True,
+                    )
 
     # ── RIGHT: results ──
     with right_col:
@@ -562,9 +661,8 @@ with tab_pg:
                 vn  = st.session_state.get(f"pg_vn_{iid}",  0.0)
                 tc  = st.session_state.get(f"pg_tc_{iid}",  0.0)
                 tna = st.session_state.get(f"pg_tna_{iid}", 0.0)
-                fl  = st.session_state.get(f"pg_fl_{iid}",  date.today())
-                fp  = st.session_state.get(f"pg_fp_{iid}",  date.today())
                 nm  = st.session_state.get(f"pg_n_{iid}",   f"Instrumento {iid}")
+                fl, fp = resolve_dates(iid)
                 calc = calc_row(fl, fp, vn, tc, tna, params, garantizado)
                 rows_data.append({"nombre": nm, "calc": calc})
 
@@ -573,41 +671,48 @@ with tab_pg:
             n_inst = len(rows_data)
             sub_txt = f"{n_inst} instrumento{'s' if n_inst > 1 else ''}"
 
-            # Big NETO card
-            st.markdown(f"""
-            <div class="neto-card">
-              <div class="nc-label">Neto a Cobrar</div>
-              <div class="nc-amount">$ {fmt_ars(tot['T'])}</div>
-              <div class="nc-sub">{sub_txt}</div>
-            </div>""", unsafe_allow_html=True)
+            # ── Big NETO card (azul) ──
+            neto_words = numero_a_palabras(tot["T"])
+            words_html = (f'<div class="nc-words">{neto_words} pesos</div>'
+                          if neto_words and neto_words != "cero" else "")
+            st.markdown(
+                f'<div class="neto-card">'
+                f'<div class="nc-label">Neto a Cobrar</div>'
+                f'<div class="nc-amount">$ {fmt_ars(tot["T"])}</div>'
+                f'{words_html}'
+                f'<div class="nc-sub">{sub_txt}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
             if n_inst == 1:
-                # Single instrument: full key-value breakdown
                 c = rows_data[0]["calc"]
                 st.markdown(single_breakdown(c, rows_data[0]["nombre"], garantizado),
                             unsafe_allow_html=True)
             else:
-                # Multiple: compact per-instrument cards + full table below
                 for row in rows_data:
                     c = row["calc"]
-                    sgr_part = f"&nbsp;&nbsp;·&nbsp;&nbsp; SGR: <b>$ {fmt_ars(c['S'])}</b>" if garantizado else ""
-                    st.markdown(f"""
-                    <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;
-                                padding:12px 16px;margin-bottom:8px;font-size:0.81rem;">
-                      <b style="color:#0f2d5e;">{row['nombre']}</b>
-                      &nbsp;·&nbsp; {int(c['dias'])} días
-                      <span style="float:right;font-family:monospace;">
-                        Boleto: <b>$ {fmt_ars(c['P'])}</b>
-                        {sgr_part}
-                        &nbsp;&nbsp;→ <b style="color:#065f46;">$ {fmt_ars(c['T'])}</b>
-                      </span>
-                    </div>""", unsafe_allow_html=True)
-
+                    safe_nm = _html.escape(str(row["nombre"]))
+                    sgr_part = (f'&nbsp;&nbsp;·&nbsp;&nbsp; SGR: <b>$ {fmt_ars(c["S"])}</b>'
+                                if garantizado else "")
+                    st.markdown(
+                        f'<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;'
+                        f'padding:12px 16px;margin-bottom:8px;font-size:0.81rem;">'
+                        f'<b style="color:#0f2d5e;">{safe_nm}</b>'
+                        f'&nbsp;·&nbsp; {int(c["dias"])} días'
+                        f'<span style="float:right;font-family:monospace;">'
+                        f'{sgr_part}'
+                        f'&nbsp;&nbsp;→ <b style="color:#1a4fa8;">$ {fmt_ars(c["T"])}</b>'
+                        f'</span></div>',
+                        unsafe_allow_html=True,
+                    )
                 st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
                 st.markdown(multi_table(rows_data, tot, garantizado), unsafe_allow_html=True)
 
-            st.markdown("<p style='font-size:0.69rem;color:#9ca3af;'>(*) TC Com. BNA billete vendedor</p>",
-                        unsafe_allow_html=True)
+            st.markdown(
+                "<p style='font-size:0.69rem;color:#9ca3af;'>(*) TC Com. BNA billete vendedor</p>",
+                unsafe_allow_html=True,
+            )
 
 # ─────────────────────────────
 # TAB: CHEQUES (próximamente)
