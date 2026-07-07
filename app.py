@@ -143,12 +143,6 @@ div[role="radiogroup"] > label > div:first-child { display: none !important; }
 .empty-state .es-icon  { font-size: 2.8rem; margin-bottom: 12px; }
 .empty-state .es-title { font-size: 0.9rem; font-weight: 600; color: #64748b; }
 .empty-state .es-sub   { font-size: 0.78rem; margin-top: 6px; }
-
-/* ── Próximamente ── */
-.prox { text-align:center; padding:90px 0; color:#94a3b8; }
-.prox .prox-icon  { font-size:3rem; margin-bottom:16px; }
-.prox .prox-title { font-size:1rem; font-weight:600; color:#64748b; }
-.prox .prox-sub   { font-size:0.8rem; margin-top:8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -785,11 +779,9 @@ st.markdown("""
 # ══════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════
-tab_pg, tab_ch, tab_hd, tab_cmp = st.tabs([
+tab_pg, tab_ch = st.tabs([
     "  Pagarés DLK  ",
     "  Cheques  ",
-    "  Pagaré Hard Dollar  ",
-    "  Comparación  ",
 ])
 
 with tab_pg:
@@ -797,17 +789,3 @@ with tab_pg:
 
 with tab_ch:
     render_tab("ch", has_tc=False)
-
-with tab_hd:
-    st.markdown("""<div class="prox">
-      <div class="prox-icon">💵</div>
-      <div class="prox-title">Pagaré Hard Dollar — Próximamente</div>
-      <div class="prox-sub">Simulador de pagarés liquidados en dólares billete.</div>
-    </div>""", unsafe_allow_html=True)
-
-with tab_cmp:
-    st.markdown("""<div class="prox">
-      <div class="prox-icon">⚖️</div>
-      <div class="prox-title">Comparación — Próximamente</div>
-      <div class="prox-sub">Comparación de condiciones entre distintos instrumentos y segmentos.</div>
-    </div>""", unsafe_allow_html=True)
