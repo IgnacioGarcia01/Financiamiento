@@ -189,9 +189,27 @@ def numero_a_palabras(n):
 # ══════════════════════════════════════════════════
 # FÓRMULAS
 # ══════════════════════════════════════════════════
+FERIADOS_ARGENTINA_2026 = {
+    date(2026, 8, 17),
+    date(2026, 10, 12),
+    date(2026, 11, 23),
+    date(2026, 12, 7),
+    date(2026, 12, 8),
+    date(2026, 12, 25),
+}
+
 def _dias(fl, fp):
     try: return max(0, (fp - fl).days)
     except: return 0
+
+def _sumar_dias_habiles(fecha, cantidad):
+    resultado = fecha
+    agregados = 0
+    while agregados < cantidad:
+        resultado += timedelta(days=1)
+        if resultado.weekday() < 5 and resultado not in FERIADOS_ARGENTINA_2026:
+            agregados += 1
+    return resultado
 
 def calc_pagare(fl, fp, vn_usd, tc, tna_pct, p, garantizado):
     dias = _dias(fl, fp)
@@ -209,8 +227,8 @@ def calc_pagare(fl, fp, vn_usd, tc, tna_pct, p, garantizado):
         M  = p["boleto"] if ar < p["boleto"] else ar
     N   = (L + M) * 0.21
     O   = L + M + N
-    Q   = H * p["sgr_com"]   * max(0, dias - 2) / 365
-    R   = H * p["sgr_caja"]  * 1.21
+    Q   = H * p["sgr_com"]  * dias / 365
+    R   = H * p["sgr_caja"] * 1.21
     sgr = (Q + R) if garantizado else 0.0
     T   = J - O - sgr
     return dict(dias=dias, vn_pesos=H, importe_bruto=J, descuento=K,
@@ -219,9 +237,11 @@ def calc_pagare(fl, fp, vn_usd, tc, tna_pct, p, garantizado):
 
 def calc_cheque(fl, fp, vn, tna_pct, p, garantizado):
     dias = _dias(fl, fp)
+    fecha_fin_descuento = _sumar_dias_habiles(fp, 2)
+    dias_descuento = _dias(fl, fecha_fin_descuento)
     tna  = tna_pct / 100.0
-    denom = 1 + tna * dias / 365
-    I = vn / denom if dias > 0 and denom != 0 else vn
+    denom = 1 + tna * dias_descuento / 365
+    I = vn / denom if dias_descuento > 0 and denom != 0 else vn
     J = vn - I
     if dias == 0:    L = 0.0
     elif dias > 90:  L = I * p["der"]
@@ -232,11 +252,11 @@ def calc_cheque(fl, fp, vn, tna_pct, p, garantizado):
         M  = p["boleto"] if ar < p["boleto"] else ar
     N   = (L + M) * 0.21
     O   = L + M + N
-    P_c = vn * p["sgr_com"]  * max(0, dias - 3) / 365
+    P_c = vn * p["sgr_com"]  * dias / 365
     Q_c = vn * p["sgr_caja"] * 1.21
     sgr = (P_c + Q_c) if garantizado else 0.0
     S   = I - O - sgr
-    return dict(dias=dias, importe_bruto=I, descuento=J,
+    return dict(dias=dias, dias_descuento=dias_descuento, importe_bruto=I, descuento=J,
                 der_mercado=L, arancel=M, iva_gastos=N, total_gastos=O,
                 sgr_com=P_c, sgr_caja=Q_c, total_sgr=sgr, neto=S)
 
@@ -273,7 +293,7 @@ def init():
         "p_pg_com":      1.5000,
         "p_pg_boleto":   100.00,
         "p_pg_sgr_com":  2.0000,
-        "p_pg_sgr_caja": 0.2000,
+        "p_pg_sgr_caja": 0.0500,
         "ch_ids": [], "ch_next_id": 1,
         "ch_garantizado": True,
         "ch_modo": "directo",
@@ -282,7 +302,7 @@ def init():
         "p_ch_com":      1.0000,
         "p_ch_boleto":   300.00,
         "p_ch_sgr_com":  3.8500,
-        "p_ch_sgr_caja": 0.2000,
+        "p_ch_sgr_caja": 0.0500,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -298,6 +318,9 @@ def get_params(pfx):
         "sgr_com":  st.session_state[f"p_{pfx}_sgr_com"]  / 100,
         "sgr_caja": st.session_state[f"p_{pfx}_sgr_caja"] / 100,
     }
+
+def _usar_acindar(pfx):
+    st.session_state[f"p_{pfx}_sgr_caja"] = 0.4
 
 def resolve_dates(pfx, iid):
     mode = st.session_state.get(f"{pfx}_mode_{iid}", "plazo")
@@ -423,11 +446,11 @@ def render_params(pfx, garantizado, has_tc=True):
     if pfx == "pg":
         sub_der  = "Predeterminado: 0,06%"
         sub_com  = "Predeterminado: 1,50% · Boleto mín. $ 100"
-        sub_caja = "Predeterminado: 0,20%"
+        sub_caja = "Predeterminado: 0,05%"
     else:
         sub_der  = "Predeterminado: 0,06%"
         sub_com  = "Predeterminado: 1,00% · Boleto mín. $ 300"
-        sub_caja = "Predeterminado: 0,20%"
+        sub_caja = "Predeterminado: 0,05%"
 
     nc = 4 if garantizado else 2
     pc = st.columns(nc)
@@ -470,6 +493,8 @@ def render_params(pfx, garantizado, has_tc=True):
             st.markdown('<div class="p-sub-label">Tasa × 1,21 IVA (%)</div>', unsafe_allow_html=True)
             st.number_input("_____", key=f"p_{pfx}_sgr_caja", min_value=0.0, step=0.01, format="%.4f",
                             label_visibility="collapsed")
+            st.button("Acindar", key=f"{pfx}_acindar", use_container_width=True,
+                      on_click=_usar_acindar, args=(pfx,))
             st.markdown("</div>", unsafe_allow_html=True)
     if has_tc:
         st.markdown(
